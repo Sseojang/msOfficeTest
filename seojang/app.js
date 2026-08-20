@@ -30,11 +30,17 @@
       .replace(/\bCTRL\b/gi, "Ctrl")
       .replace(/\bENTER\b/gi, "Enter")
       .replace(/\bTAB\b/gi, "Tab")
+      .replace(/\b(Alt|Ctrl|Shift|Enter|Tab|Esc|F\d+)\s*\+\s*/g, "$1 + ")
       .replace(/윈도우\s*(?:로고\s*)?키/g, "Windows 키");
   }
 
   function needsSourceImage(question) {
     return question.requiresImage === true;
+  }
+
+  function sourceImages(question) {
+    if (Array.isArray(question.images) && question.images.length) return question.images;
+    return question.image ? [question.image] : [];
   }
 
   function optionList(question) {
@@ -68,6 +74,8 @@
   function render() {
     const session = getSession();
     const questions = filteredQuestions();
+    const totalQuestions = examData.rounds.reduce((roundSum, item) =>
+      roundSum + item.subjects.reduce((subjectSum, current) => subjectSum + current.questions.length, 0), 0);
     const score = session?.submitted
       ? subject().questions.reduce((sum, question, index) => sum + (session.answers[index] === question.answer ? 1 : 0), 0) * 5
       : null;
@@ -79,7 +87,7 @@
           <h1>정답을 넘어,<br>이유까지 확실하게.</h1>
           <p>회차와 과목을 선택하면 원문 문제, 정답 보기, 상세 해설을 한 자리에서 확인할 수 있습니다.</p>
         </div>
-        <div class="solution-count"><strong>300</strong><span>전체 해설 문항</span></div>
+        <div class="solution-count"><strong>${totalQuestions}</strong><span>전체 해설 문항</span></div>
       </section>
 
       <nav class="solution-toolbar" aria-label="정답 및 해설 범위 선택">
@@ -119,7 +127,9 @@
             <div class="answer-content">
               <div class="answer-question">
                 <div class="answer-stem"><span>${String(question.number).padStart(2, "0")}</span><p>${displayText(question.stem)}</p></div>
-                ${sourceImage ? `<img src="../${escapeHtml(question.image)}" alt="${escapeHtml(question.stem)}" loading="lazy"><div class="source-caption">표·그림 확인용 PDF 원문</div>` : ""}
+                ${sourceImage ? `<div class="answer-source-images">${sourceImages(question).map((image, imageIndex) =>
+                  `<div class="source-image-item">${question.imageLabels?.[imageIndex] ? `<strong class="source-image-label">${escapeHtml(question.imageLabels[imageIndex])}</strong>` : ""}<img src="../${escapeHtml(image)}" alt="${escapeHtml(question.stem)}${sourceImages(question).length > 1 ? ` 자료 ${imageIndex + 1}` : ""}" loading="lazy"></div>`
+                ).join("")}</div><div class="source-caption">표·그림 확인용 PDF 원문</div>` : ""}
                 ${showOptionText ? optionList(question) : ""}
               </div>
               <div class="answer-explanation">

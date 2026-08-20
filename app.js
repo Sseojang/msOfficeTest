@@ -36,11 +36,17 @@
       .replace(/\bCTRL\b/gi, "Ctrl")
       .replace(/\bENTER\b/gi, "Enter")
       .replace(/\bTAB\b/gi, "Tab")
+      .replace(/\b(Alt|Ctrl|Shift|Enter|Tab|Esc|F\d+)\s*\+\s*/g, "$1 + ")
       .replace(/윈도우\s*(?:로고\s*)?키/g, "Windows 키");
   }
 
   function needsSourceImage(question) {
     return question.requiresImage === true;
+  }
+
+  function sourceImages(question) {
+    if (Array.isArray(question.images) && question.images.length) return question.images;
+    return question.image ? [question.image] : [];
   }
 
   function sessionKey(roundIndex = activeRound, subjectIndex = activeSubject) {
@@ -125,6 +131,10 @@
   }
 
   function renderHome() {
+    const totalRounds = examData.rounds.length;
+    const totalSubjects = examData.rounds.reduce((sum, round) => sum + round.subjects.length, 0);
+    const totalQuestions = examData.rounds.reduce((roundSum, round) =>
+      roundSum + round.subjects.reduce((subjectSum, subject) => subjectSum + subject.questions.length, 0), 0);
     const completedSubjects = examData.rounds.reduce((sum, round, roundIndex) =>
       sum + round.subjects.filter((_, subjectIndex) => getSession(roundIndex, subjectIndex).submitted).length, 0);
 
@@ -133,11 +143,11 @@
         <div class="hero-copy">
           <p class="eyebrow">2026 Computer Literacy Level 1</p>
           <h1>회차는 실전처럼,<br><span>과목은 집중해서.</span></h1>
-          <p class="hero-description">5회분 300문제를 1·2·3과목으로 나눠 연습하세요. 원문 표와 그림을 그대로 보며 풀고, 과목별 점수를 즉시 확인할 수 있습니다.</p>
+          <p class="hero-description">${totalRounds}회분 ${totalQuestions}문제를 1·2·3과목으로 나눠 연습하세요. 원문 표와 그림을 그대로 보며 풀고, 과목별 점수를 즉시 확인할 수 있습니다.</p>
         </div>
         <div class="hero-stats" aria-label="문제 구성">
-          <div class="hero-stat"><strong>5</strong><span>실전 모의고사</span></div>
-          <div class="hero-stat"><strong>300</strong><span>전체 문항</span></div>
+          <div class="hero-stat"><strong>${totalRounds}</strong><span>실전 모의고사</span></div>
+          <div class="hero-stat"><strong>${totalQuestions}</strong><span>전체 문항</span></div>
           <div class="hero-rule"><span class="rule-icon">✓</span><span>합격 기준 · 과목별 40점 이상, 전 과목 평균 60점 이상</span></div>
         </div>
       </section>
@@ -148,7 +158,7 @@
             <h2 id="round-heading">실전 모의고사 선택</h2>
             <p>회차를 고른 뒤 원하는 과목만 따로 시작할 수 있습니다.</p>
           </div>
-          <span class="completion-summary">완료 ${completedSubjects} / 15과목</span>
+          <span class="completion-summary">완료 ${completedSubjects} / ${totalSubjects}과목</span>
         </div>
         <div class="round-grid">
           ${examData.rounds.map((round, roundIndex) => {
@@ -262,7 +272,9 @@
               <h2><span class="question-original-number">${String(question.number).padStart(2, "0")}</span><span>${displayText(question.stem)}</span></h2>
             </section>
             ${sourceImage ? `<figure class="question-source">
-              <img src="${escapeHtml(question.image)}" alt="${escapeHtml(question.stem)}" data-fallback="${escapeHtml(question.stem)}">
+              <div class="question-source-images">${sourceImages(question).map((image, imageIndex) =>
+                `<div class="source-image-item">${question.imageLabels?.[imageIndex] ? `<strong class="source-image-label">${escapeHtml(question.imageLabels[imageIndex])}</strong>` : ""}<img src="${escapeHtml(image)}" alt="${escapeHtml(question.stem)}${sourceImages(question).length > 1 ? ` 자료 ${imageIndex + 1}` : ""}" data-fallback="${escapeHtml(question.stem)}"></div>`
+              ).join("")}</div>
               <figcaption>표·그림 확인용 PDF 원문 · 문제는 위에 텍스트로 제공</figcaption>
             </figure>` : ""}
             <div class="choice-panel">
@@ -301,13 +313,14 @@
         </div>
       </dialog>`;
 
-    const image = app.querySelector(".question-source img");
-    image?.addEventListener("error", () => {
-      const replacement = document.createElement("div");
-      replacement.className = "image-fallback";
-      replacement.textContent = image.dataset.fallback;
-      image.replaceWith(replacement);
-    }, { once: true });
+    app.querySelectorAll(".question-source img").forEach(image => {
+      image.addEventListener("error", () => {
+        const replacement = document.createElement("div");
+        replacement.className = "image-fallback";
+        replacement.textContent = image.dataset.fallback;
+        image.replaceWith(replacement);
+      }, { once: true });
+    });
     startTimer(session);
   }
 
